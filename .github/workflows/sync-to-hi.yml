@@ -1,0 +1,35 @@
+name: Sync Docker Images to Private Registry (Hierarchical Sync)
+run-name: Image - ${{ inputs.source_image }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_image:
+        description: "Source image (e.g. docker.io/golang:1.26.2-bookworm)"
+        required: true
+        default: "docker.io/golang:1.26.2-bookworm"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest 
+    steps:
+      - name: 🚀 Sync Image using Skopeo
+        run: |
+          SRC="docker://${{ github.event.inputs.source_image }}"
+          DEST="docker://${{ HIERARCHICAL_PRIVATE_REGISTRY }}/${{ github.event.inputs.source_image }}"
+          
+          echo "Starting sync: $SRC -> $DEST"
+
+          docker run --rm \
+            quay.io/skopeo/stable:latest \
+            copy \
+            --all \
+            --src-tls-verify=true \
+            --dest-tls-verify=true \
+            --dest-creds "${{ secrets.HIERARCHICAL_DOCKER_USER }}:${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}" \
+            "$SRC" \
+            "$DEST"
+
+      - name: ✅ Done
+        run: |
+          echo "Image synced successfully to Private Registry."
