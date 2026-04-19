@@ -41,7 +41,6 @@ jobs:
             docker run --rm \
               regclient/regctl:latest \
               image copy \
-              --recursive \
               --format docker \
               --user "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
               "$SRC" \
