@@ -21,6 +21,7 @@ jobs:
 
           echo "Starting sync: $SRC -> $DEST"
           
+          set +e
           docker run --rm \
             quay.io/skopeo/stable:latest \
             copy \
@@ -30,8 +31,10 @@ jobs:
             --dest-creds "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
             "docker://$SRC" \
             "docker://$DEST"
+          ret=$?
+          set -e
 
-          if [ $? -gt 0 ]; then
+          if [ $ret -gt 0 ]; then
 
             echo "⚠️ skopeo failed, fallback to regctl..."
 

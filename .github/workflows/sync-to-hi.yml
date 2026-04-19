@@ -19,7 +19,8 @@ jobs:
           DEST="${{ secrets.HIERARCHICAL_PRIVATE_REGISTRY }}/${{ github.event.inputs.source_image }}"
           
           echo "Starting sync: $SRC -> $DEST"
-          
+
+          set +e
           docker run --rm \
             quay.io/skopeo/stable:latest \
             copy \
@@ -29,11 +30,14 @@ jobs:
             --dest-creds "${{ secrets.HIERARCHICAL_DOCKER_USER }}:${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}" \
             "docker://$SRC" \
             "docker://$DEST"
+          ret=$?
+          set -e
 
-          if [ $? -gt 0 ]; then
+          if [ $ret -gt 0 ]; then
 
             echo "⚠️ skopeo failed, fallback to regctl..."
 
+            set -e
             docker run --rm \
               regclient/regctl:latest \
               image copy \
