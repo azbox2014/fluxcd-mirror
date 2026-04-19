@@ -27,32 +27,11 @@ jobs:
           DEST="${{ secrets.FLAT_BASE_URL }}/${TRIM_NAME}"
 
           echo "Starting sync: $SRC -> $DEST"
-          
-          set +e
-          docker run --rm \
-            quay.io/skopeo/stable:latest \
-            copy \
-            --all \
-            --src-tls-verify=true \
-            --dest-tls-verify=true \
+
+          skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
             --dest-creds "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
             "docker://$SRC" \
             "docker://$DEST"
-          ret=$?
-          set -e
-
-          if [ $ret -gt 0 ]; then
-
-            echo "⚠️ skopeo failed, fallback to regctl..."
-
-            docker run --rm \
-              -v ~/.docker/config.json:/root/.docker/config.json:ro \
-              regclient/regctl:latest \
-              image copy \
-              --format docker \
-              "$SRC" \
-              "$DEST"
-          fi
 
       - name: ✅ Done
         run: |
