@@ -15,11 +15,11 @@ jobs:
     steps:
       - name: 🚀 Sync Image using Skopeo
         run: |
-          SRC="docker://${{ github.event.inputs.source_image }}"
-          DEST="docker://${{ secrets.HIERARCHICAL_PRIVATE_REGISTRY }}/${{ github.event.inputs.source_image }}"
+          SRC="${{ github.event.inputs.source_image }}"
+          DEST="${{ secrets.HIERARCHICAL_PRIVATE_REGISTRY }}/${{ github.event.inputs.source_image }}"
           
           echo "Starting sync: $SRC -> $DEST"
-
+          
           docker run --rm \
             quay.io/skopeo/stable:latest \
             copy \
@@ -27,8 +27,22 @@ jobs:
             --src-tls-verify=true \
             --dest-tls-verify=true \
             --dest-creds "${{ secrets.HIERARCHICAL_DOCKER_USER }}:${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}" \
-            "$SRC" \
-            "$DEST"
+            "docker://$SRC" \
+            "docker://$DEST"
+
+          if [ $? -gt 0 ]; then
+
+            echo "⚠️ skopeo failed, fallback to regctl..."
+
+            docker run --rm \
+              regclient/regctl:latest \
+              image copy \
+              --recursive \
+              --format docker \
+              --user "${{ secrets.HIERARCHICAL_DOCKER_USER }}:${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}" \
+              "$SRC" \
+              "$DEST"
+          fi
 
       - name: ✅ Done
         run: |

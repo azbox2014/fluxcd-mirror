@@ -11,16 +11,16 @@ on:
 
 jobs:
   sync:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     steps:
-      - name: 🚀 Sync Image using Skopeo
+      - name: 🚀 Sync Image
         run: |
-          SRC="docker://${{ github.event.inputs.source_image }}"
-          TRIM_NAME="$(echo ${{ github.event.inputs.source_image }} | sed -E 's;/;_;g')"
-          DEST="docker://${{ secrets.FLAT_PRIVATE_REGISTRY }}/${TRIM_NAME}"
-          
-          echo "Starting sync: $SRC -> $DEST"
+          SRC="${{ github.event.inputs.source_image }}"
+          TRIM_NAME="$(echo ${SRC} | sed -E 's;/;_;g')"
+          DEST="${{ secrets.FLAT_PRIVATE_REGISTRY }}/${TRIM_NAME}"
 
+          echo "Starting sync: $SRC -> $DEST"
+          
           docker run --rm \
             quay.io/skopeo/stable:latest \
             copy \
@@ -28,8 +28,22 @@ jobs:
             --src-tls-verify=true \
             --dest-tls-verify=true \
             --dest-creds "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
-            "$SRC" \
-            "$DEST"
+            "docker://$SRC" \
+            "docker://$DEST"
+
+          if [ $? -gt 0 ]; then
+
+            echo "⚠️ skopeo failed, fallback to regctl..."
+
+            docker run --rm \
+              regclient/regctl:latest \
+              image copy \
+              --recursive \
+              --format docker \
+              --user "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
+              "$SRC" \
+              "$DEST"
+          fi
 
       - name: ✅ Done
         run: |
