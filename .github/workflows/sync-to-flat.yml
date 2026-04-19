@@ -17,7 +17,7 @@ jobs:
         run: |
           SRC="docker://${{ github.event.inputs.source_image }}"
           TRIM_NAME="$(echo ${{ github.event.inputs.source_image }} | sed -E 's;/;_;g')"
-          DEST="docker://${{ FLAT_PRIVATE_REGISTRY }}/${TRIM_NAME}"
+          DEST="docker://${{ secrets.FLAT_PRIVATE_REGISTRY }}/${TRIM_NAME}"
           
           echo "Starting sync: $SRC -> $DEST"
 

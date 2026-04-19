@@ -16,7 +16,7 @@ jobs:
       - name: 🚀 Sync Image using Skopeo
         run: |
           SRC="docker://${{ github.event.inputs.source_image }}"
-          DEST="docker://${{ HIERARCHICAL_PRIVATE_REGISTRY }}/${{ github.event.inputs.source_image }}"
+          DEST="docker://${{ secrets.HIERARCHICAL_PRIVATE_REGISTRY }}/${{ github.event.inputs.source_image }}"
           
           echo "Starting sync: $SRC -> $DEST"
 
