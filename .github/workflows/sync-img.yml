@@ -1,0 +1,130 @@
+name: Sync Docker Images to Private Registry
+run-name: Images - ${{ inputs.list || github.event.head_commit.message }}
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      source_images:
+        description: "Source images (comma-separated, e.g. docker.io/golang:1.26.2-bookworm,docker.io/nginx:1.27)"
+        required: true
+        default: "docker.io/golang:1.26.2-bookworm"
+      type:
+        description: "Source images type: hierarchical or flat"
+        required: true
+        default: "hierarchical"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 解析输入
+        id: parse
+        shell: bash
+        run: |
+          set -e
+
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            msg="${{ github.event.head_commit.message }}"
+            echo "commit message: $msg"
+            msg="$(echo "$msg" | head -n 1)"
+
+            if [[ "$msg" =~ ^flat-sync:\ (.+)$ ]]; then
+              value="${BASH_REMATCH[1]}"
+              {
+                echo "value<<EOF"
+                echo "$value"
+                echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+              echo "type=flat" >> $GITHUB_OUTPUT
+
+            elif [[ "$msg" =~ ^hi-sync:\ (.+)$ ]]; then
+              value="${BASH_REMATCH[1]}"
+              {
+                echo "value<<EOF"
+                echo "$value"
+                echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+              echo "type=hi" >> $GITHUB_OUTPUT
+
+            else
+              echo "skip=true" >> $GITHUB_OUTPUT
+              echo "type=xxx" >> $GITHUB_OUTPUT
+            fi
+
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            {
+              echo "value<<EOF"
+              echo "${{ inputs.source_images }}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.type }}" = "hierarchical" ]; then
+              echo "type=hi" >> $GITHUB_OUTPUT
+            else
+              echo "type=flat" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: 判断是否跳过
+        if: steps.parse.outputs.skip == 'true'
+        run: echo "不符合触发条件，跳过"
+
+      # - name: Login to Private Registry
+      #   if: steps.parse.outputs.type == 'flat'
+      #   uses: docker/login-action@v4
+      #   with:
+      #     registry: ${{ secrets.FLAT_PRIVATE_REGISTRY }}
+      #     username: ${{ secrets.FLAT_DOCKER_USER }}
+      #     password: ${{ secrets.FLAT_DOCKER_TOKEN }}
+
+      # - name: Login to Private Registry
+      #   if: steps.parse.outputs.type == 'hi'
+      #   uses: docker/login-action@v4
+      #   with:
+      #     registry: ${{ secrets.HIERARCHICAL_PRIVATE_REGISTRY }}
+      #     username: ${{ secrets.HIERARCHICAL_DOCKER_USER }}
+      #     password: ${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}
+
+      - name: 🚀 Sync Images (Parallel)
+        if: steps.parse.outputs.skip != 'true'
+        run: |
+          IMAGES="${{ steps.parse.outputs.value }}"
+          echo "镜像列表: $IMAGES"
+          echo
+          
+          sync_image() {
+            SRC="$1"
+
+            if [ "${{ steps.parse.outputs.type }}" = "hi" ]; then
+              DEST="${{ secrets.HIERARCHICAL_BASE_URL }}/${{ github.event.inputs.source_image }}"
+
+              echo "Starting sync: $SRC -> $DEST"
+
+              skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
+                --dest-creds "${{ secrets.HIERARCHICAL_DOCKER_USER }}:${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}" \
+                "docker://$SRC" \
+                "docker://$DEST"
+
+            elif [ "${{ steps.parse.outputs.type }}" = "flat" ]; then
+              TRIM_NAME="$(echo "${SRC}" | sed -E 's;/;_;g')"
+              DEST="${{ secrets.FLAT_BASE_URL }}/${TRIM_NAME}"
+              echo ">>> Syncing: $SRC -> $DEST"
+
+              skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
+                --dest-creds "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
+                "docker://$SRC" \
+                "docker://$DEST"
+            fi
+
+            echo ">>> Done: $SRC"
+          }
+          export -f sync_image
+
+          echo "$IMAGES" | tr ',' '\n' | xargs -n1 -P3 -I{} bash -c 'sync_image "$@"' _ {}
+
+      - name: ✅ Done
+        run: |
+          echo "Image synced successfully to Private Registry."
