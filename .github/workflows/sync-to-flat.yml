@@ -1,11 +1,11 @@
 name: Sync Docker Images to Private Registry (Flat Sync)
-run-name: Image - ${{ inputs.source_image }}
+run-name: Images - ${{ inputs.source_images }}
 
 on:
   workflow_dispatch:
     inputs:
-      source_image:
-        description: "Source image (e.g. docker.io/golang:1.26.2-bookworm)"
+      source_images:
+        description: "Source images (comma-separated, e.g. docker.io/golang:1.26.2-bookworm,docker.io/nginx:1.27)"
         required: true
         default: "docker.io/golang:1.26.2-bookworm"
 
@@ -20,19 +20,24 @@ jobs:
           username: ${{ secrets.FLAT_DOCKER_USER }}
           password: ${{ secrets.FLAT_DOCKER_TOKEN }}
 
-      - name: 🚀 Sync Image
+      - name: 🚀 Sync Images (Parallel)
         run: |
-          SRC="${{ github.event.inputs.source_image }}"
-          TRIM_NAME="$(echo ${SRC} | sed -E 's;/;_;g')"
-          DEST="${{ secrets.FLAT_BASE_URL }}/${TRIM_NAME}"
+          IMAGES="${{ github.event.inputs.source_images }}"
+          
+          sync_image() {
+            SRC="$1"
+            TRIM_NAME="$(echo "${SRC}" | sed -E 's;/;_;g')"
+            DEST="${{ secrets.FLAT_BASE_URL }}/${TRIM_NAME}"
 
-          echo "Starting sync: $SRC -> $DEST"
+            echo ">>> Syncing: $SRC -> $DEST"
 
-          skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
-            --dest-creds "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
-            "docker://$SRC" \
-            "docker://$DEST"
+            skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
+              --dest-creds "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
+              "docker://$SRC" \
+              "docker://$DEST"
 
-      - name: ✅ Done
-        run: |
-          echo "Image synced successfully to Private Registry."
+            echo ">>> Done: $SRC"
+          }
+          export -f sync_image
+
+          echo "$IMAGES" | tr ',' '\n' | xargs -n1 -P3 -I{} bash -c 'sync_image "$@"' _ {}
