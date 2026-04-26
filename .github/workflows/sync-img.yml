@@ -1,5 +1,5 @@
 name: Sync Docker Images to Private Registry
-run-name: Images - ${{ inputs.list || github.event.head_commit.message }}
+run-name: Images - ${{ inputs.source_images || github.event.head_commit.message }}
 
 on:
   push:
