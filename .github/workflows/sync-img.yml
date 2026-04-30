@@ -72,22 +72,6 @@ jobs:
         if: steps.parse.outputs.skip == 'true'
         run: echo "不符合触发条件，跳过"
 
-      # - name: Login to Private Registry
-      #   if: steps.parse.outputs.type == 'flat'
-      #   uses: docker/login-action@v4
-      #   with:
-      #     registry: ${{ secrets.FLAT_PRIVATE_REGISTRY }}
-      #     username: ${{ secrets.FLAT_DOCKER_USER }}
-      #     password: ${{ secrets.FLAT_DOCKER_TOKEN }}
-
-      # - name: Login to Private Registry
-      #   if: steps.parse.outputs.type == 'hi'
-      #   uses: docker/login-action@v4
-      #   with:
-      #     registry: ${{ secrets.HIERARCHICAL_PRIVATE_REGISTRY }}
-      #     username: ${{ secrets.HIERARCHICAL_DOCKER_USER }}
-      #     password: ${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}
-
       - name: 🚀 Sync Images (Parallel)
         if: steps.parse.outputs.skip != 'true'
         run: |
@@ -99,12 +83,12 @@ jobs:
             SRC="$1"
 
             if [ "${{ steps.parse.outputs.type }}" = "hi" ]; then
-              DEST="${{ secrets.HIERARCHICAL_BASE_URL }}/${{ github.event.inputs.source_image }}"
+              DEST="${{ secrets.HI_BASE_URL }}/${{ github.event.inputs.source_image }}"
 
               echo "Starting sync: $SRC -> $DEST"
 
               skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
-                --dest-creds "${{ secrets.HIERARCHICAL_DOCKER_USER }}:${{ secrets.HIERARCHICAL_DOCKER_TOKEN }}" \
+                --dest-creds "${{ secrets.HI_CREDS }}" \
                 "docker://$SRC" \
                 "docker://$DEST"
 
@@ -114,7 +98,7 @@ jobs:
               echo ">>> Syncing: $SRC -> $DEST"
 
               skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
-                --dest-creds "${{ secrets.FLAT_DOCKER_USER }}:${{ secrets.FLAT_DOCKER_TOKEN }}" \
+                --dest-creds "${{ secrets.FLAT_CREDS }}" \
                 "docker://$SRC" \
                 "docker://$DEST"
             fi
