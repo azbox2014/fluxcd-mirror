@@ -1,0 +1,96 @@
+name: Derper: Docker Image
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * MON'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          logout: false
+
+      - name: Log in to DockerHub Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Parse FLAT_CREDS
+        id: flat
+        run: |
+          echo "user=${FLAT_CREDS%%:*}" >> $GITHUB_OUTPUT
+          echo "pass=${FLAT_CREDS#*:}" >> $GITHUB_OUTPUT
+        env:
+          FLAT_CREDS: ${{ secrets.FLAT_CREDS }}
+
+      - name: Log in to ACR Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.FLAT_REGISTRY }}
+          username: ${{ steps.flat.outputs.user }}
+          password: ${{ steps.flat.outputs.pass }}
+
+      - name: Parse QCR_CREDS
+        id: qcr
+        run: |
+          echo "user=${QCR_CREDS%%:*}" >> $GITHUB_OUTPUT
+          echo "pass=${QCR_CREDS#*:}" >> $GITHUB_OUTPUT
+        env:
+          QCR_CREDS: ${{ secrets.QCR_CREDS }}
+
+      - name: Log in to QCR Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.QCR_REGISTRY }}
+          username: ${{ steps.qcr.outputs.user }}
+          password: ${{ steps.qcr.outputs.pass }}
+
+      - name: Get latest tailscale version
+        run: |
+          TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | jq -r '.tag_name')
+          echo "Latest tailscale version: $TAILSCALE_VERSION"
+          echo TAILSCALE_VERSION=$TAILSCALE_VERSION >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: derper
+          platforms: linux/amd64, linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/derper:${{ env.TAILSCALE_VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/derper:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/derper:${{ github.sha }}
+            ghcr.io/${{ github.actor }}/derper:${{ env.TAILSCALE_VERSION }}
+            ghcr.io/${{ github.actor }}/derper:latest
+            ${{ secrets.FLAT_REGISTRY }}/osc-org/derper:${{ env.TAILSCALE_VERSION }}
+            ${{ secrets.FLAT_REGISTRY }}/osc-org/derper:latest
+            ${{ secrets.QCR_REGISTRY }}/osc-org/derper:${{ env.TAILSCALE_VERSION }}
+            ${{ secrets.QCR_REGISTRY }}/osc-org/derper:latest
+          build-args: |
+            DERP_VERSION=${{ env.TAILSCALE_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

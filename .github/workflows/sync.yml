@@ -1,4 +1,4 @@
-name: Sync Image to Private Registry
+name: OCI-Sync: Sync Image to Private Registry
 run-name: Image - ${{ inputs.image || github.event.head_commit.message }}
 
 on:
@@ -108,7 +108,7 @@ jobs:
           echo
           skopeo --version
 
-          . func.sh
+          . mirror/func.sh
           set -x
           if [[ ${{ steps.parse.outputs.type }} = hi ]]; then
             DEST="$(transform_oci_image_url hi ${SRC})"

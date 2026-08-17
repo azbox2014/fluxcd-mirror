@@ -1,4 +1,4 @@
-name: Cronjob for Sync Image
+name: OCI-Sync: Cronjob for Sync Image
 
 on:
   workflow_dispatch:
@@ -28,16 +28,17 @@ jobs:
         run: |
           set -e
 
-          . func.sh
-          len=$(jq '. | length' image-list.json)
+          . mirror/func.sh
+          len=$(jq '. | length' mirror/image-list.json)
           for idx in $(seq 0 $((len-1))); do
           
-            image="$(jq -r '.['${idx}'].image' image-list.json)"
-            tag_reg="$(jq -r '.['${idx}'].tagReg' image-list.json)"
-            sync_type="$(jq -r '.['${idx}'].type' image-list.json)"
+            image="$(jq -r '.['${idx}'].image' mirror/image-list.json)"
+            tag_reg="$(jq -r '.['${idx}'].tagReg' mirror/image-list.json)"
+            sync_type="$(jq -r '.['${idx}'].type' mirror/image-list.json)"
             
             latest1=$(skopeo list-tags --creds ${{ secrets.HI_CREDS }} docker://$(transform_oci_image_url ${sync_type} ${image}) | jq -r '.Tags[]' | grep -E "${tag_reg}" | sort -Vr | head -n 1)
             latest_tag=$(skopeo list-tags docker://${image} | jq -r '.Tags[]' | grep -E "${tag_reg}" | sort -Vr | head -n 1)
+
 
             if [[ ${latest1} != ${latest_tag} ]]; then
               echo "Sync ${image}:${latest_tag}"
@@ -64,7 +65,7 @@ jobs:
               trigger_sync "${image}:${latest_tag}" "${sync_type}"
               
               # gh workflow run sync.yml -R ${GITHUB_REPOSITORY} --ref main -f image="${image}:${latest_tag}" -f "type=${sync_type}"
-              if [[ "$(jq -r '.['${idx}'].latest' image-list.json)" == "true" ]]; then
+              if [[ "$(jq -r '.['${idx}'].latest' mirror/image-list.json)" == "true" ]]; then
                 trigger_sync "${image}" "${sync_type}"
                 # gh workflow run sync.yml -R ${GITHUB_REPOSITORY} --ref main -f image="${image}" -f "type=${sync_type}"
               fi
