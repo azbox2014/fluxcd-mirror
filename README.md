@@ -1,12 +1,13 @@
 # OCI Tools
 
-两个独立的子项目，共享同一仓库。
+多个独立的子项目，共享同一仓库。
 
 ## 目录结构
 
 ```
 ├── mirror/       OCI 镜像同步工具，将公共镜像同步到私有仓库
 ├── derper/       Tailscale DERP 中继服务器 Docker 镜像
+├── webhook/      adnanh/webhook Docker 镜像
 ```
 
 ## mirror/
@@ -20,3 +21,9 @@
 [Tailscale DERP](https://tailscale.com/kb/1118/custom-derp-servers/) 服务器的 Docker 打包。支持多架构构建（amd64/arm64），自动跟踪上游 Tailscale 版本。
 
 详见 [derper/README.md](derper/README.md)
+
+## webhook/
+
+[adnanh/webhook](https://github.com/adnanh/webhook/) 的 Docker 打包，扩展了 curl、bash、jq 工具。支持多架构构建（386/amd64/arm/arm64），自动跟踪上游版本。
+
+详见 [webhook/README.md](webhook/README.md)
