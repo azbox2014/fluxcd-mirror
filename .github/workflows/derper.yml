@@ -1,10 +1,10 @@
-name: Derper: Docker Image
+name: Derper Docker Image
 
 on:
   push:
     branches: [main]
   schedule:
-    - cron: '0 0 * * MON'
+    - cron: "0 0 * * MON"
   workflow_dispatch:
 
 permissions:
