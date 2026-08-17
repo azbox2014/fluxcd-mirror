@@ -9,7 +9,7 @@ on:
       - main
 
   schedule:
-    - cron: "30 17 * * *"
+    - cron: "30 18 * * *"
 
 permissions:
   contents: read
