@@ -1,4 +1,4 @@
-name: OCI-Sync: Cronjob for Sync Image
+name: OCI-Sync Cronjob for Sync Image
 
 on:
   workflow_dispatch:
