@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
@@ -17,14 +16,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Log in to GitHub Docker Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          logout: false
 
       - name: Log in to DockerHub Registry
         uses: docker/login-action@v3
@@ -84,8 +75,6 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/derper:${{ env.TAILSCALE_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/derper:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/derper:${{ github.sha }}
-            ghcr.io/${{ github.actor }}/derper:${{ env.TAILSCALE_VERSION }}
-            ghcr.io/${{ github.actor }}/derper:latest
             ${{ secrets.FLAT_REGISTRY }}/osc-org/derper:${{ env.TAILSCALE_VERSION }}
             ${{ secrets.FLAT_REGISTRY }}/osc-org/derper:latest
             ${{ secrets.QCR_REGISTRY }}/osc-org/derper:${{ env.TAILSCALE_VERSION }}
