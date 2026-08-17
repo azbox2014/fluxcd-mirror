@@ -1,4 +1,4 @@
-name: OCI-Sync Sync Image to Private Registry
+name: OCI-Sync - Sync Image to Private Registry
 run-name: Image - ${{ inputs.image || github.event.head_commit.message }}
 
 on:

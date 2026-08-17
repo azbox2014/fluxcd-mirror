@@ -1,4 +1,4 @@
-name: Derper Docker Image
+name: Derper - Docker Image
 
 on:
   push:
