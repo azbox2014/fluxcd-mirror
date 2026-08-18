@@ -102,7 +102,9 @@ sync_flat_filtered() {
   echo "Step 2: Filtering manifest list..."
   local INDEX_FILE="${OCI_DIR}/index.json"
   local MF_DIGEST=$(jq -r '.manifests[0].digest' "$INDEX_FILE")
-  local MF_FILE="${OCI_DIR}/blobs/${MF_DIGEST}"
+  local MF_ALGO=$(echo "$MF_DIGEST" | cut -d: -f1)
+  local MF_HEX=$(echo "$MF_DIGEST" | cut -d: -f2)
+  local MF_FILE="${OCI_DIR}/blobs/${MF_ALGO}/${MF_HEX}"
 
   if [[ ! -f "$MF_FILE" ]]; then
     echo "ERROR: Manifest list blob not found: $MF_FILE"
