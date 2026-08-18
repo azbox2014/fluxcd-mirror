@@ -125,8 +125,6 @@ jobs:
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.PUB_IMAGE }}:${{ env.VERSION }}
             ${{ env.PUB_IMAGE }}:latest
-            ${{ env.QCR_IMAGE }}:${{ env.VERSION }}
-            ${{ env.QCR_IMAGE }}:latest
           build-args: |
             BASE_VERSION=${{ env.BASE_VERSION }}
           cache-from: type=gha
