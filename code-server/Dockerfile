@@ -35,6 +35,14 @@ RUN apt update && apt install -y --no-install-recommends \
     pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# =========================
+# nodejs lts
+# =========================
+RUN set -eux; \
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -; \
+    apt-get install -y --no-install-recommends nodejs; \
+    rm -rf /var/lib/apt/lists/*
+
 ARG TARGETARCH
 # =========================
 # arch mapping
