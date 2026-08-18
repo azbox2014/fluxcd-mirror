@@ -132,10 +132,7 @@ jobs:
             DEST="$(transform_oci_image_url flat ${SRC})"
             echo ">>> Syncing: $SRC -> $DEST"
 
-            skopeo copy --all --src-tls-verify=true --dest-tls-verify=true \
-              --dest-creds "${{ secrets.FLAT_CREDS }}" \
-              "docker://$SRC" \
-              "docker://$DEST"
+            sync_flat_filtered "$SRC" "$DEST" "${{ secrets.FLAT_CREDS }}"
           fi
 
           echo ">>> Done: $SRC"
