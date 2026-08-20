@@ -101,3 +101,5 @@ jobs:
             WEBHOOK_VERSION=${{ steps.webhook_info.outputs.WEBHOOK_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false

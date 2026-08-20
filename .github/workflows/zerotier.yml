@@ -113,3 +113,5 @@ jobs:
             ${{ secrets.QCR_REGISTRY }}/osc-org/zerotier-one:${{ env.VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
