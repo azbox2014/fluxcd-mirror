@@ -1,0 +1,146 @@
+name: OpenMAIC - Build Image
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 2 * * *"
+
+env:
+  SOURCE_REPO: https://github.com/THU-MAIC/OpenMAIC
+  TAG_PATTERN: ^v[0-9]+(\.[0-9]+){2}$
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for new tags
+        if: ${{ !inputs.VERSION }}
+        id: check-tags
+        run: |
+          echo "🔍 检查 OpenMAIC 仓库的新 tag..."
+
+          git ls-remote --tags ${SOURCE_REPO} | awk '{print $2}' | sed 's|refs/tags/||' | sort -V > remote_tags.txt
+
+          echo "📋 远程仓库的所有 tag:"
+          cat remote_tags.txt
+
+          grep -E "${TAG_PATTERN}" remote_tags.txt > valid_tags.txt || true
+
+          echo "📋 符合规则的 tag (^v[0-9]+(\.[0-9]+){2}$):"
+          cat valid_tags.txt || echo "无"
+
+          if [ ! -s valid_tags.txt ]; then
+            echo "⚠️ 没有找到符合规则的 tag"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          LATEST_TAG=$(tail -1 valid_tags.txt)
+          echo "📌 最新有效 tag: ${LATEST_TAG}"
+
+          echo "should_build=true" >> $GITHUB_OUTPUT
+          echo "VERSION=${LATEST_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Set VERSION from input
+        if: ${{ inputs.VERSION }}
+        run: echo "VERSION=${{ inputs.VERSION }}" >> $GITHUB_ENV
+
+      - name: Clone OpenMAIC source
+        run: |
+          echo "📦 克隆 OpenMAIC 源代码..."
+          VERSION=${VERSION:-${{ steps.check-tags.outputs.VERSION }}}
+          echo "📌 构建版本: ${VERSION}"
+          git clone --branch ${VERSION} --depth 1 ${SOURCE_REPO} openmaic-source
+          echo "📂 源代码目录:"
+          ls -la openmaic-source/
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Parse FLAT_CREDS
+        if: github.event_name != 'pull_request'
+        id: flat
+        run: |
+          echo "user=${FLAT_CREDS%%:*}" >> $GITHUB_OUTPUT
+          echo "pass=${FLAT_CREDS#*:}" >> $GITHUB_OUTPUT
+        env:
+          FLAT_CREDS: ${{ secrets.FLAT_CREDS }}
+
+      - name: Login to ACR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.FLAT_REGISTRY }}
+          username: ${{ steps.flat.outputs.user }}
+          password: ${{ steps.flat.outputs.pass }}
+
+      - name: Parse QCR_CREDS
+        if: github.event_name != 'pull_request'
+        id: qcr
+        run: |
+          echo "user=${QCR_CREDS%%:*}" >> $GITHUB_OUTPUT
+          echo "pass=${QCR_CREDS#*:}" >> $GITHUB_OUTPUT
+        env:
+          QCR_CREDS: ${{ secrets.QCR_CREDS }}
+
+      - name: Log in to QCR Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.QCR_REGISTRY }}
+          username: ${{ steps.qcr.outputs.user }}
+          password: ${{ steps.qcr.outputs.pass }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: openmaic-source
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            NEXT_PUBLIC_PERSISTENCE=1
+            NEXT_PUBLIC_PRO_WORKBENCH_ENABLED=true
+            OPENMAIC_AGENT_RUNTIME_ENABLED=true
+            NEXT_PUBLIC_MAIC_EDITOR_ENABLED=true
+            NEXT_PUBLIC_MAIC_EDITOR_RENDERER_ENABLED=true
+            NEXT_PUBLIC_MAIC_PLAYBACK_RENDERER_ENABLED=true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/openmaic:${{ env.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/openmaic:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/openmaic:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/openmaic:${{ env.VERSION }}
+            ${{ secrets.FLAT_REGISTRY }}/osc-org/openmaic:latest
+            ${{ secrets.FLAT_REGISTRY }}/osc-org/openmaic:${{ env.VERSION }}
+            ${{ secrets.QCR_REGISTRY }}/osc-org/openmaic:latest
+            ${{ secrets.QCR_REGISTRY }}/osc-org/openmaic:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Clean up
+        if: always()
+        run: rm -rf openmaic-source
