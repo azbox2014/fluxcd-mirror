@@ -106,6 +106,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             NEXT_PUBLIC_PERSISTENCE=1
+            NEXT_PUBLIC_PERSISTENCE_TOKEN=openmaic-internal
             NEXT_PUBLIC_PRO_WORKBENCH_ENABLED=true
             OPENMAIC_AGENT_RUNTIME_ENABLED=true
             NEXT_PUBLIC_MAIC_EDITOR_ENABLED=true

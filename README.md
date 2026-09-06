@@ -47,4 +47,6 @@
 
 [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) 的 Docker 打包。支持多架构构建（amd64/arm64），自动跟踪上游版本标签。多仓库推送：GHCR、Docker Hub、ACR、QCR。
 
+> **注意**：该镜像仅用于私有网络下的集群部署与实验，不要对外提供服务。
+
 详见 [open-maic/README.md](open-maic/README.md)
