@@ -49,6 +49,30 @@ jobs:
           echo "📂 源代码目录:"
           ls -la openmaic-source/
 
+      # 上游 Dockerfile 未声明 NEXT_PUBLIC_PRO_WORKBENCH_ENABLED（ARG 列表遗漏）。
+      # Docker 会静默丢弃未声明的 build-arg，导致该 flag 在编译期被内联为 undefined：
+      #   lib/workbench/entry-gate.ts → isWorkbenchEntryEnabled() 恒为 false
+      #   → /workspace 重定向到 /，首页 Pro 入口消失
+      # 此处在构建前补声明。上游修复后可删除本 step。
+      - name: Patch Dockerfile (upstream missing ARG)
+        run: |
+          cd openmaic-source
+
+          if grep -q 'ARG NEXT_PUBLIC_PRO_WORKBENCH_ENABLED' Dockerfile; then
+            echo "✅ 上游已修复，无需 patch（可移除本 step）"
+            exit 0
+          fi
+
+          if ! grep -q '^RUN pnpm build$' Dockerfile; then
+            echo "::error::Dockerfile 结构变更，找不到锚点 'RUN pnpm build'，patch 失败"
+            exit 1
+          fi
+
+          sed -i '/^RUN pnpm build$/i ARG NEXT_PUBLIC_PRO_WORKBENCH_ENABLED\nENV NEXT_PUBLIC_PRO_WORKBENCH_ENABLED=$NEXT_PUBLIC_PRO_WORKBENCH_ENABLED\n' Dockerfile
+
+          echo "✅ 已注入 ARG/ENV，核对:"
+          grep -n 'PRO_WORKBENCH' Dockerfile
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -108,10 +132,11 @@ jobs:
             NEXT_PUBLIC_PERSISTENCE=1
             NEXT_PUBLIC_PERSISTENCE_TOKEN=openmaic-internal
             NEXT_PUBLIC_PRO_WORKBENCH_ENABLED=true
-            OPENMAIC_AGENT_RUNTIME_ENABLED=true
             NEXT_PUBLIC_MAIC_EDITOR_ENABLED=true
             NEXT_PUBLIC_MAIC_EDITOR_RENDERER_ENABLED=true
             NEXT_PUBLIC_MAIC_PLAYBACK_RENDERER_ENABLED=true
+            NEXT_PUBLIC_ENABLE_VIDEO_EXPORT=true
+            NEXT_PUBLIC_ENABLE_PPTX_IMPORT=true
           tags: |
             ghcr.io/${{ github.repository_owner }}/openmaic:${{ env.VERSION }}
             ghcr.io/${{ github.repository_owner }}/openmaic:latest
