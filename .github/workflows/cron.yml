@@ -26,7 +26,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          set -e
+          set -xe
 
           . mirror/func.sh
           len=$(jq '. | length' mirror/image-list.json)
