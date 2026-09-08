@@ -27,6 +27,11 @@
         "type": "flat"
     },
     {
+        "image": "docker.io/nousresearch/hermes-agent",
+        "tagReg": "^v[0-9]+(\\.[0-9]+){2}$",
+        "type": "flat"
+    },
+    {
         "image": "ghcr.io/fluxcd/helm-controller",
         "tagReg": "^v[0-9]+(\\.[0-9]+){2}$",
         "type": "flat"
